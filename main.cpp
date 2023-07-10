@@ -1,7 +1,6 @@
 #include <iostream>
 #include <exception>
 
-#include <jdbc/mysql_driver.h>
 #include <jdbc/mysql_connection.h>
 #include <jdbc/cppconn/driver.h>
 #include <jdbc/cppconn/exception.h>
@@ -31,8 +30,6 @@ sql::Statement* DB_Statement = nullptr;
 sql::PreparedStatement* DB_PST = nullptr;
 sql::ResultSet* DB_ResultSet = nullptr;
 
-
-
 int commend = 999;
 
 int main()
@@ -40,55 +37,48 @@ int main()
 	try
 	{
 		DB_Driver = get_driver_instance();
-		
+
 		DB_Connection = DB_Driver->connect(DB_IP, "root", "qwe123");
 		DB_Connection->setSchema("testdatabase");
 		DB_Statement = DB_Connection->createStatement();
 
 		DB_ResultSet = DB_Statement->executeQuery("select * from testtable");
 
-		
-
 		string ID, PASSWORD;
 		string query;
 		int delnum = 0;
-		while(commend != 0)
+		while (commend != 0)
 		{
+			printf("ÀÛ¾÷À» ¼±ÅÃÇØÁÖ¼¼¿ä. \n");
 			commend = 999;
-			DB_Connection->commit();
 			cin >> commend;
 
 			switch (commend)
 			{
 				case 1:
-					cout << "IDì™€ PASSWORDë¥¼ ìž…ë ¥í•´ì£¼ì„¸ìš”." << endl;
-					
+					cout << "ID¿Í PASSWORD¸¦ ÀÔ·ÂÇØÁÖ¼¼¿ä." << endl;
+
 					cin >> ID >> PASSWORD;
 					query = "INSERT INTO testdatabase.testtable (TestID, TestPW) VALUES ('" + ID + "', '" + PASSWORD + "')";
 					DB_Statement->execute(query);
-					cout << "íšŒì›ê°€ìž… ì„±ê³µ" << endl;
 					commend = 999;
 					break;
 				case 2:
-					cout << "DBì— ì €ìž¥ëœ IDì™€ PASSWORDëŠ” \n";
-					DB_Connection->setSchema("testdatabase"); //ë°ì´í„°ë² ì´ìŠ¤ ì—°ê²° ê°±ì‹ 
-					DB_ResultSet = DB_Statement->executeQuery("SELECT * FROM testtable"); //ì§‘í•©ì˜ ì»¤ì„œ ì´ˆê¸°í™” í•´ì£¼ê¸°
-					while (DB_ResultSet->next())
+					cout << "DB¿¡ ÀúÀåµÈ ID¿Í PASSWORD´Â \n";
+					for (; DB_ResultSet->next();)
 					{
 						cout << DB_ResultSet->getString("TestID") << " , "
-							<< DB_ResultSet->getString("TestPW") << endl;
+							<< DB_ResultSet->getString("TestPW") << " , " << endl;
 					}
-					cout << "ìž…ë‹ˆë‹¤.";
 					commend = 999;
 					break;
-				case 3:
+				case 3: 
 					cin >> delnum;
 					query = "DELETE FROM testdatabase.testtable WHERE TestID = 'NO" + to_string(delnum) + "'";
 					DB_Statement->execute(query);
 					break;
-				case 4:
-				{
-					DB_Connection->setSchema("testdatabase"); //ë°ì´í„°ë² ì´ìŠ¤ ì—°ê²° ê°±ì‹ 
+				case 4:	{
+					DB_Connection->setSchema("testdatabase"); //µ¥ÀÌÅÍ °»½Å
 					string inputID = "";
 					string inputPW = "";
 					cin >> inputID >> inputPW;
@@ -97,31 +87,31 @@ int main()
 					{
 						if (DB_ResultSet->getString("TestPW") == inputPW)
 						{
-							cout << "ë¡œê·¸ì¸ ì„±ê³µ" << endl;
+							printf("·Î±×ÀÎ ¼º°ø \n");
 						}
 						else
 						{
-							cout << "PASSWORDê°€ ì¼ì¹˜í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤." << endl;
+							cout << "PASSWORD°¡€ Æ²·È½À´Ï´Ù." << endl;
 						}
 					}
 					else
 					{
-						cout << "ìž…ë ¥í•˜ì‹  IDê°€ ì¡´ìž¬í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤." << endl;
+						cout << "Á¸ÀçÇÏÁö ¾Ê´Â IDÀÔ´Ï´Ù." << endl;
 					}
 					break;
-				}
+					}
 				case 0:
-					cout << "ì‹œìŠ¤í…œ ì¢…ë£Œ";
+					cout << "½Ã½ºÅÛ Á¾·á";
 					break;
 			}
 		}
 
-		 
-		//for (; DB_ResultSet->next();)
-		//{
-		//	cout << DB_ResultSet->getString("TestID") << " , "
-		//		<< DB_ResultSet->getString("TestPW") << " , " << endl;
-		//}
+
+		for (; DB_ResultSet->next();)
+		{
+			cout << DB_ResultSet->getString("TestID") << " , "
+				<< DB_ResultSet->getString("TestPW") << " , " << endl;
+		}
 
 	}
 	catch (sql::SQLException e)
