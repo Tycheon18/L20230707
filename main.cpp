@@ -1,5 +1,10 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS 
+
 #include <iostream>
+#include <winsock2.h>
+
 #include <exception>
+
 
 #include <jdbc/mysql_connection.h>
 #include <jdbc/cppconn/driver.h>
@@ -8,6 +13,7 @@
 #include <jdbc/cppconn/statement.h>
 #include <jdbc/cppconn/prepared_statement.h>
 
+#pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "vs14/debug/mysqlcppconn.lib")
 
 using namespace std;
@@ -32,6 +38,66 @@ sql::ResultSet* DB_ResultSet = nullptr;
 
 int commend = 999;
 
+void login(int commend)
+{
+
+	string ID, PASSWORD;
+	string query;
+	int delnum = 0;
+
+	switch (commend)
+	{
+	case 1:
+		cout << "ID¿Í PASSWORD¸¦ ÀÔ·ÂÇØÁÖ¼¼¿ä." << endl;
+
+		cin >> ID >> PASSWORD;
+		query = "INSERT INTO testdatabase.testtable (TestID, TestPW) VALUES ('" + ID + "', '" + PASSWORD + "')";
+		DB_Statement->execute(query);
+		commend = 999;
+		break;
+	case 2:
+		cout << "DB¿¡ ÀúÀåµÈ ID¿Í PASSWORD´Â \n";
+		for (; DB_ResultSet->next();)
+		{
+			cout << DB_ResultSet->getString("TestID") << " , "
+				<< DB_ResultSet->getString("TestPW") << " , " << endl;
+		}
+		commend = 999;
+		break;
+	case 3:
+		cin >> delnum;
+		query = "DELETE FROM testdatabase.testtable WHERE TestID = 'NO" + to_string(delnum) + "'";
+		DB_Statement->execute(query);
+		break;
+	case 4: {
+		DB_Connection->setSchema("testdatabase"); //µ¥ÀÌÅÍ °»½Å
+		string inputID = "";
+		string inputPW = "";
+		cin >> inputID >> inputPW;
+		DB_ResultSet = DB_Statement->executeQuery("SELECT * FROM testtable WHERE TestID = '" + inputID + "'");
+		if (DB_ResultSet->next() == 1)
+		{
+			if (DB_ResultSet->getString("TestPW") == inputPW)
+			{
+				printf("·Î±×ÀÎ ¼º°ø \n");
+			}
+			else
+			{
+				printf("PASSWORD°¡ Æ²·È½À´Ï´Ù. \n");
+			}
+		}
+		else
+		{
+			cout << "Á¸ÀçÇÏÁö ¾Ê´Â IDÀÔ´Ï´Ù." << endl;
+		}
+		break;
+	}
+	case 0:
+		cout << "½Ã½ºÅÛ Á¾·á";
+		break;
+	}
+}
+
 int main()
 {
 	try
@@ -44,80 +110,44 @@ int main()
 
 		DB_ResultSet = DB_Statement->executeQuery("select * from testtable");
 
-		string ID, PASSWORD;
-		string query;
-		int delnum = 0;
-		while (commend != 0)
-		{
-			printf("ÀÛ¾÷À» ¼±ÅÃÇØÁÖ¼¼¿ä. \n");
-			commend = 999;
-			cin >> commend;
+		//while (commend != 0)
+		//{
+		//	printf("ÀÛ¾÷À» ¼±ÅÃÇØÁÖ¼¼¿ä. \n");
+		//	commend = 999;
+		//	cin >> commend;
 
-			switch (commend)
-			{
-				case 1:
-					cout << "ID¿Í PASSWORD¸¦ ÀÔ·ÂÇØÁÖ¼¼¿ä." << endl;
-
-					cin >> ID >> PASSWORD;
-					query = "INSERT INTO testdatabase.testtable (TestID, TestPW) VALUES ('" + ID + "', '" + PASSWORD + "')";
-					DB_Statement->execute(query);
-					commend = 999;
-					break;
-				case 2:
-					cout << "DB¿¡ ÀúÀåµÈ ID¿Í PASSWORD´Â \n";
-					for (; DB_ResultSet->next();)
-					{
-						cout << DB_ResultSet->getString("TestID") << " , "
-							<< DB_ResultSet->getString("TestPW") << " , " << endl;
-					}
-					commend = 999;
-					break;
-				case 3: 
-					cin >> delnum;
-					query = "DELETE FROM testdatabase.testtable WHERE TestID = 'NO" + to_string(delnum) + "'";
-					DB_Statement->execute(query);
-					break;
-				case 4:	{
-					DB_Connection->setSchema("testdatabase"); //µ¥ÀÌÅÍ °»½Å
-					string inputID = "";
-					string inputPW = "";
-					cin >> inputID >> inputPW;
-					DB_ResultSet = DB_Statement->executeQuery("SELECT * FROM testtable WHERE TestID = '" + inputID + "'");
-					if (DB_ResultSet->next() == 1)
-					{
-						if (DB_ResultSet->getString("TestPW") == inputPW)
-						{
-							printf("·Î±×ÀÎ ¼º°ø \n");
-						}
-						else
-						{
-							cout << "PASSWORD°¡€ Æ²·È½À´Ï´Ù." << endl;
-						}
-					}
-					else
-					{
-						cout << "Á¸ÀçÇÏÁö ¾Ê´Â IDÀÔ´Ï´Ù." << endl;
-					}
-					break;
-					}
-				case 0:
-					cout << "½Ã½ºÅÛ Á¾·á";
-					break;
-			}
-		}
+		//	login(commend);
+		//	
+		//}
 
 
-		for (; DB_ResultSet->next();)
-		{
-			cout << DB_ResultSet->getString("TestID") << " , "
-				<< DB_ResultSet->getString("TestPW") << " , " << endl;
-		}
+		//for (; DB_ResultSet->next();)
+		//{
+		//	cout << DB_ResultSet->getString("TestID") << " , "
+		//		<< DB_ResultSet->getString("TestPW") << " , " << endl;
+		//}
 
 	}
 	catch (sql::SQLException e)
 	{
 		cout << "SQL Exception : " << e.what() << endl;
 	}
+
+	WSAData wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+	{
+		return 1;
+	}
+
+	cout << "[¾Ë¸²] WinSock ÃÊ±âÈ­ ¼º°ø" << endl;
+
+	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock == INVALID_SOCKET) { return 1; }
+	printf("[¾Ë¸²] Socket »ý¼º ¼º°ø \n");
+
+	closesocket(sock);
+
+	WSACleanup();
 
 	return 0;
 }
