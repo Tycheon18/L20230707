@@ -1,6 +1,7 @@
 #include <iostream>
 #include <exception>
 
+#include <jdbc/mysql_driver.h>
 #include <jdbc/mysql_connection.h>
 #include <jdbc/cppconn/driver.h>
 #include <jdbc/cppconn/exception.h>
@@ -30,6 +31,8 @@ sql::Statement* DB_Statement = nullptr;
 sql::PreparedStatement* DB_PST = nullptr;
 sql::ResultSet* DB_ResultSet = nullptr;
 
+
+
 int commend = 999;
 
 int main()
@@ -44,11 +47,15 @@ int main()
 
 		DB_ResultSet = DB_Statement->executeQuery("select * from testtable");
 
+		
+
 		string ID, PASSWORD;
 		string query;
+		int delnum = 0;
 		while(commend != 0)
 		{
 			commend = 999;
+			DB_Connection->commit();
 			cin >> commend;
 
 			switch (commend)
@@ -57,19 +64,52 @@ int main()
 					cout << "ID와 PASSWORD를 입력해주세요." << endl;
 					
 					cin >> ID >> PASSWORD;
-					query = "INSERT INTO testdatabase.testtable (TestID, TestWord) VALUES ('" + ID + "', '" + PASSWORD + "')";
+					query = "INSERT INTO testdatabase.testtable (TestID, TestPW) VALUES ('" + ID + "', '" + PASSWORD + "')";
 					DB_Statement->execute(query);
+					cout << "회원가입 성공" << endl;
 					commend = 999;
 					break;
 				case 2:
 					cout << "DB에 저장된 ID와 PASSWORD는 \n";
-					for (; DB_ResultSet->next();)
+					DB_Connection->setSchema("testdatabase"); //데이터베이스 연결 갱신
+					DB_ResultSet = DB_Statement->executeQuery("SELECT * FROM testtable"); //집합의 커서 초기화 해주기
+					while (DB_ResultSet->next())
 					{
 						cout << DB_ResultSet->getString("TestID") << " , "
-							<< DB_ResultSet->getString("TestWord") << " , " << endl;
+							<< DB_ResultSet->getString("TestPW") << endl;
 					}
+					cout << "입니다.";
 					commend = 999;
 					break;
+				case 3:
+					cin >> delnum;
+					query = "DELETE FROM testdatabase.testtable WHERE TestID = 'NO" + to_string(delnum) + "'";
+					DB_Statement->execute(query);
+					break;
+				case 4:
+				{
+					DB_Connection->setSchema("testdatabase"); //데이터베이스 연결 갱신
+					string inputID = "";
+					string inputPW = "";
+					cin >> inputID >> inputPW;
+					DB_ResultSet = DB_Statement->executeQuery("SELECT * FROM testtable WHERE TestID = '" + inputID + "'");
+					if (DB_ResultSet->next() == 1)
+					{
+						if (DB_ResultSet->getString("TestPW") == inputPW)
+						{
+							cout << "로그인 성공" << endl;
+						}
+						else
+						{
+							cout << "PASSWORD가 일치하지 않습니다." << endl;
+						}
+					}
+					else
+					{
+						cout << "입력하신 ID가 존재하지 않습니다." << endl;
+					}
+					break;
+				}
 				case 0:
 					cout << "시스템 종료";
 					break;
@@ -77,11 +117,11 @@ int main()
 		}
 
 		 
-		for (; DB_ResultSet->next();)
-		{
-			cout << DB_ResultSet->getString("TestID") << " , "
-				<< DB_ResultSet->getString("TestWord") << " , " << endl;
-		}
+		//for (; DB_ResultSet->next();)
+		//{
+		//	cout << DB_ResultSet->getString("TestID") << " , "
+		//		<< DB_ResultSet->getString("TestPW") << " , " << endl;
+		//}
 
 	}
 	catch (sql::SQLException e)
