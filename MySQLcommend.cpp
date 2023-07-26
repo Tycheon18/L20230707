@@ -106,7 +106,8 @@ char MySQLcommend::Login(string id, string pw)
 		DB_ResultSet = DB_Statement->executeQuery("SELECT * FROM testtable WHERE TestID = '" + id + "'");
 		if (DB_ResultSet->next() == 1)
 		{
-			if (DB_ResultSet->getString("TestPW") == pw)
+			DB_ResultSet = DB_Statement->executeQuery("SELECT * FROM testtable WHERE TestID = '" + id + "' AND TestPW = '" + pw + "'");
+			if (DB_ResultSet->next() == 1)
 			{
 				return '0';
 			}

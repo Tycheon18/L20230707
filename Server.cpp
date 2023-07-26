@@ -4,15 +4,174 @@
 #include <iostream>
 #include <winsock2.h>
 #include "MySQLcommend.h"
+#include <ws2tcpip.h>
 
 using namespace std;
 
 #pragma comment(lib, "ws2_32.lib")
 
+MySQLcommend SQL;
+
+DWORD WINAPI ProcessClient(LPVOID arg)
+{
+	SOCKET ClientSocket = (SOCKET)arg;
+	int RecvByte = 0;
+	int SendByte = 0;
+	sockaddr_in ClientSockAddr;
+	char addr[INET_ADDRSTRLEN];
+	int addrlen;
+	char Buffer[512] = { 0, };
+
+	addrlen = sizeof(ClientSockAddr);
+	getpeername(ClientSocket, (SOCKADDR*)&ClientSockAddr, &addrlen);
+	inet_ntop(AF_INET, &ClientSockAddr.sin_addr, addr, sizeof(addr));
+
+	while (1)
+	{
+		char Buffer[512] = { 0, };
+
+		int RecvByte = 0;
+		int SendByte = 0;
+
+		RecvByte = recv(ClientSocket, Buffer, 512, 0);
+
+		cout << Buffer << endl;
+		cout << "Buffer[0]은 " << Buffer[0] << "입니다." << endl;
+		cout << "Buffer의 길이는 " << strlen(Buffer) << "입니다." << endl;
+
+		if (Buffer[0] == '2' && strlen(Buffer) == 1)
+		{
+			//char sendnum[] = "1";
+			//SendByte = send(ClientSocket, sendnum, strlen(sendnum) + 1, 0);
+
+			//char sendstr[] = "Join : Please input Your ID and PASSWORD.";
+			//SendByte = send(ClientSocket, sendstr, strlen(sendstr) + 1, 0);
+
+			cout << "회원가입 절차 시작" << endl;
+
+			char IDBuf[512] = { 0, };
+			char PWBuf[512] = { 0, };
+			string ID;
+			string PW;
+
+			RecvByte = recv(ClientSocket, IDBuf, 512, 0);
+			RecvByte = recv(ClientSocket, PWBuf, 512, 0);
+
+			for (int i = 0; i < strlen(IDBuf); ++i)
+			{
+				ID += IDBuf[i];
+			}
+			for (int i = 0; i < strlen(PWBuf); ++i)
+			{
+				PW += PWBuf[i];
+			}
+
+			cout << ID << ' ' << PW;
+
+			char num = SQL.Join(ID, PW);
+
+			switch (num)
+			{
+			case '0':
+			{
+				char result[] = "Join Success!";
+				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
+				break;
+			}
+			case '1':
+			{
+				char result[] = "This ID already exists.";
+				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
+				break;
+			}
+			case '2':
+			{
+				char result[] = "DB Error.";
+				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
+				break;
+			}
+			}
+
+		}
+		else if (Buffer[0] == '1' && strlen(Buffer) == 1)
+		{
+			//char sendnum[] = "2";
+			//SendByte = send(ClientSocket, sendnum, strlen(sendnum) + 1, 0);
+
+			//char sendstr[] = "Login : Please input Your ID and PASSWORD.";
+			//SendByte = send(ClientSocket, sendstr, strlen(sendstr) + 1, 0);
+
+			cout << "로그인 절차 시작" << endl;
+
+			char IDBuf[512] = { 0, };
+			char PWBuf[512] = { 0, };
+			string ID;
+			string PW;
+
+			RecvByte = recv(ClientSocket, IDBuf, 512, 0);
+			RecvByte = recv(ClientSocket, PWBuf, 512, 0);
+
+			for (int i = 0; i < strlen(IDBuf); ++i)
+			{
+				ID += IDBuf[i];
+			}
+			for (int i = 0; i < strlen(PWBuf); ++i)
+			{
+				PW += PWBuf[i];
+			}
+
+			cout << "ID is : " << ID << "/ PW is : " << PW << endl;
+
+			char num = SQL.Login(ID, PW);
+
+			switch (num)
+			{
+			case '0':
+			{
+				char result[] = "Login Success!";
+				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
+				break;
+			}
+			case '1':
+			{
+				char result[] = "PASSWORD is Incorrect.";
+				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
+				break;
+			}
+			case '2':
+			{
+				char result[] = "ID does not exist.";
+				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
+				break;
+			}
+			case '3':
+			{
+				char result[] = "DB Error.";
+				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
+				break;
+			}
+			}
+
+		}
+	}
+	closesocket(ClientSocket);
+	printf("[TCP 서버] 클라이언트 종료 : IP 주소 = %s , 포트 번호 = %d\n", addr, ntohs(ClientSockAddr.sin_port));
+	return 0;
+}
+
+DWORD WINAPI ServerCommend(LPVOID arg)
+{
+	while (1)
+	{
+		std::string Commend = "";
+		cin >> Commend;
+	}
+
+	return 0;
+}
+
 int main()
 {
-	MySQLcommend SQL;
-
 	WSAData wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
@@ -26,130 +185,75 @@ int main()
 
 	bind(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
-	listen(ServerSocket, 5);
+	listen(ServerSocket, SOMAXCONN);
+
+	fd_set ReadSockets;
+	fd_set CopyReadSockets;
+	FD_ZERO(&ReadSockets);
+	FD_SET(ServerSocket, &ReadSockets);
+
+	TIMEVAL TimeOut;
+	TimeOut.tv_sec = 0;
+	TimeOut.tv_usec = 100;
 
 	SOCKADDR_IN ClientSockAddr;
-	ZeroMemory(&ClientSockAddr, sizeof(ClientSockAddr));
-	int ClientSockAddrLength = sizeof(ClientSockAddr);
+	memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
+	int ClientSockAddrLength;
 
-	SOCKET ClientSocket = accept(ServerSocket, (SOCKADDR*)&ClientSockAddr, &ClientSockAddrLength);
-	
-	while(1)
+	SOCKET ClientSocket;
+	HANDLE hThread;
+
+	while (1)
 	{
-		char Buffer[512] = { 0, };
-		
-		int RecvByte = 0;
-		int SendByte = 0;
+		ClientSockAddrLength = sizeof(ClientSockAddr);
+		ClientSocket = accept(ServerSocket, (SOCKADDR*)&ClientSockAddr, &ClientSockAddrLength);
 
-		RecvByte = recv(ClientSocket, Buffer, 512, 0);
-		
-		cout << Buffer << endl;
-		cout << "Buffer[0]은 " << Buffer[0] << "입니다." << endl;
+		char addr[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &ClientSockAddr.sin_addr, addr, sizeof(addr));
+		printf("\n[TCP 서버] 클라이언트 접속 : IP 주소 = %s , 포트 번호 = %d\n", addr, ntohs(ClientSockAddr.sin_port));
 
-		if (Buffer[0] == '1' && strlen(Buffer) == 1)
-		{
-			char sendnum[] = "1";
-			SendByte = send(ClientSocket, sendnum, strlen(sendnum) + 1, 0);
+		hThread = CreateThread(NULL, 0, ProcessClient, (LPVOID)ClientSocket, 0, NULL);
+		if (hThread == NULL) { closesocket(ClientSocket); }
+		else { CloseHandle(hThread); }
+	}
 
-			char sendstr[] = "회원 가입 : 아이디와 비밀번호를 입력해주세요.";
-			SendByte = send(ClientSocket, sendstr, strlen(sendstr) + 1, 0);
+	//closesocket(ClientSocket);
+	closesocket(ServerSocket);
 
-			char IDBuf[512] = { 0, };
-			char PWBuf[512] = { 0, };
-			string ID;
-			string PW;
+	WSACleanup();
 
-			RecvByte = recv(ClientSocket, IDBuf, 512, 0);
-			RecvByte = recv(ClientSocket, PWBuf, 512, 0);
+	return 0;
+}
 
-			for (int i = 0; i < strlen(IDBuf); ++i)
-			{
-				ID += IDBuf[i];
-			}
-			for (int i = 0; i < strlen(IDBuf); ++i)
-			{
-				PW += PWBuf[i];
-			}
-			
-			char num = SQL.Join(ID, PW);
 
-			switch (num)
-			{
-			case '0':
-			{
-				char result[] = "회원가입 성공!";
-				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
-				break;
-			}
-			case '1':
-			{
-				char result[] = "이미 존재하는 ID입니다.";
-				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
-				break;
-			}
-			case '2':
-			{
-				char result[] = "DB 오류 발생.";
-				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
-				break;
-			}
-			}
+//while(1)
+//{
+//	CopyReadSockets = ReadSockets;
+//	int ChangeCount = select(0, &CopyReadSockets, 0, 0, &TimeOut);
+//	if (ChangeCount == 0) continue;
+//	else
+//	{
+//		for(int i = 0; i < (int)ReadSockets.fd_count; ++i)
+//		{
+//			SOCKADDR_IN ClientSockAddr;
+//			memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
+//			int ClientSockAddrLength = sizeof(ClientSockAddr);
 
-		}
-		else if (Buffer[0] == '2' && strlen(Buffer) == 1)
-		{
-			char sendnum[] = "2";
-			SendByte = send(ClientSocket, sendnum, strlen(sendnum) + 1, 0);
+//			SOCKET ClientSocket = accept(ServerSocket, (SOCKADDR*)&ClientSockAddr, &ClientSockAddrLength);
 
-			char sendstr[] = "로그인 : 아이디와 비밀번호를 입력해주세요.";
-			SendByte = send(ClientSocket, sendstr, strlen(sendstr) + 1, 0);
+//			char ip[128] = { 0, };
 
-			char IDBuf[512] = { 0, };
-			char PWBuf[512] = { 0, };
-			string ID;
-			string PW;
+//			string ClientIP = inet_ntop(AF_INET, &ClientSockAddr.sin_addr, ip, INET_ADDRSTRLEN);
 
-			RecvByte = recv(ClientSocket, IDBuf, 512, 0);
-			RecvByte = recv(ClientSocket, PWBuf, 512, 0);
+//			cout << ClientIP << endl;
+//		}
+//	}
 
-			for (int i = 0; i < strlen(IDBuf); ++i)
-			{
-				ID += IDBuf[i];
-			}
-			for (int i = 0; i < strlen(IDBuf); ++i)
-			{
-				PW += PWBuf[i];
-			}
+//	string Text = "";
+//	cin >> Text;
 
-			char num = SQL.Login(ID, PW);
+//}
 
-			switch (num)
-			{
-			case '0':
-			{
-				char result[] = "로그인 성공!";
-				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
-				break;
-			}
-			case '1':
-			{
-				char result[] = "비밀번호가 틀렸습니다.";
-				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
-				break;
-			}
-			case '2':
-			{
-				char result[] = "존재하지 않는 ID입니다.";
-				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
-				break;
-			}
-			case '3':
-			{
-				char result[] = "DB 오류 발생.";
-				SendByte = send(ClientSocket, result, strlen(result) + 1, 0);
-				break;
-			}
-			}
 
 	/*		switch ()
 			{
@@ -166,20 +270,16 @@ int main()
 				cout << "DB 오류 발생." << endl;
 				break;
 			}*/
-		}
-		else
-		{
-			char sendstr[] = "";
-			SendByte = send(ClientSocket, sendstr, strlen(sendstr)+1, 0);
-		}
+//		}
+		//	else
+		//	{
 
-		
-	}
+			//char sendstr[512] = {0, };
+			//for (int i = 0; i < strlen(Buffer); ++i)
+			//{
+			//	sendstr[i] = Buffer[i];
+			//}
+			//SendByte = send(ClientSocket, sendstr, strlen(sendstr)+1, 0);
+		//	}
 
-	closesocket(ClientSocket);
-	closesocket(ServerSocket);
-
-	WSACleanup();
-
-	return 0;
-}
+		//	
